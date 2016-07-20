@@ -137,10 +137,14 @@ function getUpdates() {
     log(errorText);
     stopBot();
   }, 35);
-}
+} 
 
 function handleUpdate(update) {
-  eval(onUpdate.value);
+  try {
+    eval(onUpdate.value);
+  } catch (e) {
+    log("Error in your script above: " + e.message);
+  }
 }
 
 function call(method, params, onResponse, onError, timeout) {
