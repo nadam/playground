@@ -1,0 +1,197 @@
+<html>
+<!-- The license of this page is Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0) -->
+<head>
+  <title>Bot API Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style type="text/css">
+    body{margin:40px auto;max-width:900px;line-height:1.4;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{font-family: sans-serif; line-height:1.2}
+    textarea {
+      border:1px solid #999999;
+      font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;}
+  </style>
+</head>
+
+<body>
+  <h1>Bot API Playground</h1>
+  <p>This page will run a Telegram bot locally in your web browser. Just enter your bot token from <a href="https://telegram.me/botfather">BotFather</a> and press the Start button. Press the button again or reload the page to stop the bot.</p>
+  <p>The source code of this bot is also <a href="https://github.com/nadam/playground">available on Github</a>.
+  <br><br>
+  <label for="token">Bot token</label><br>
+  <input id="token" type="text" placeholder="Paste your bot token from @BotFather here" size=60 /><br><br>
+  <button id="startStop" type="button" onclick="startBot()">Start</button><br><br>
+  <label for="onUpdate">Handle <a href="https://core.telegram.org/bots/api#update">update</a></label><br>
+  <textarea id="onUpdate" rows=18 cols=100>
+var message = update.message;
+if (message) {
+  if (message.text == "/ping") {
+    call("sendMessage", {
+      chat_id: message.chat.id,
+      text: "pong",
+      reply_markup: {
+        inline_keyboard: [
+          [{text: "Google", url: "https://google.com"}],
+          [{text: "Hide keyboard", callback_data: "HIDE"}]
+        ]
+      }
+    });
+  }
+}
+
+var query = update.callback_query;
+if (query) {
+  if (query.data == "HIDE") {
+    call("editMessageReplyMarkup", {
+      chat_id: query.message.chat.id,
+      message_id: query.message.message_id
+    });
+  }
+}
+
+var inlineQuery = update.inline_query;
+if (inlineQuery && inlineQuery.query) {
+  call("answerInlineQuery", {
+    inline_query_id: inlineQuery.id,
+    results: [
+      {
+        type: "article",
+        id: "B",
+        title: "Bold",
+        input_message_content: {
+          message_text: "<b>" + inlineQuery.query + "</b>",
+          parse_mode: "HTML"
+        },
+        description: inlineQuery.query
+      },
+      {
+        type: "article",
+        id: "I",
+        title: "Italic",
+        input_message_content: {
+          message_text: "<i>" + inlineQuery.query + "</i>",
+          parse_mode: "HTML"
+        },
+        description: inlineQuery.query
+      }
+    ]
+  });
+} </textarea><br><br>
+  <p id="output"></p>
+  <script>
+
+var onUpdate = document.getElementById("onUpdate");
+var output = document.getElementById("output");
+var startStop = document.getElementById("startStop");
+var running = false;
+var botUrl;
+var xhr; // XMLHttpRequest
+var botName = "Bot";
+
+// Use token from the url query string if present
+var query = window.location.search;
+var token = query.replace("?token=", '');
+document.getElementById("token").value = token;
+
+function startBot() {
+  var token = document.getElementById("token").value;
+  botUrl = "https://api.telegram.org/bot" + token + "/";
+  call("getMe", {}, function(bot) {
+    botName = bot.first_name;
+    log(botName + " started");
+    startStop.innerText = "Stop";
+    startStop.onclick = stopBot;
+    running = true;
+    getUpdates(); // Start long polling
+  });
+}
+
+function stopBot() {
+  running = false;
+  log(botName + " stopped");
+  xhr.abort();
+  startStop.innerText = "Start";
+  startStop.onclick = startBot;
+}
+
+var nextUpdateId = 0;
+
+// Long polling of getUpdates
+function getUpdates() {
+  call("getUpdates", {
+    offset: nextUpdateId,
+    limit: 100,
+    timeout: 30
+  }, function(updates) {
+    if (updates.length > 0) {
+      for (var i=0; i<updates.length; ++i) {
+        handleUpdate(updates[i]);
+      }
+      var lastUpdate = updates[updates.length-1];
+      nextUpdateId = lastUpdate.update_id + 1;
+    }
+    if (running) {
+      getUpdates();
+    } else {
+      log("Bot stopped");
+    }
+  }, function(errorCode, errorText) {
+    log(errorText);
+    stopBot();
+  }, 35);
+}
+
+function handleUpdate(update) {
+  eval(onUpdate.value);
+}
+
+function call(method, params, onResponse, onError, timeout) {
+  xhr = new XMLHttpRequest();
+  xhr.open("POST", botUrl + method);
+  xhr.setRequestHeader("Content-type", "application/json");
+  
+  if (!onError) {
+    onError = defaultErrorHandler;
+  }
+
+  xhr.onload = function () {
+    if (xhr.responseText) {
+      var response = JSON.parse(xhr.responseText);
+      if (response.result) {
+        if (onResponse) {
+            onResponse(response.result);
+        }
+      } else {
+        onError(response.error_code, method + ": " + response.description);
+      }
+    }
+  };
+  
+  xhr.onerror = function(e) {
+    if (e) {
+      onError(-1, e);
+    } else {
+      onError(-1, "No connection");
+    }
+  };
+
+  xhr.timeout = timeout ? timeout * 1000 : 15000;
+  xhr.ontimeout = function() {
+    onError(-1, "Timeout");
+  };
+  
+  xhr.send(JSON.stringify(params));
+}
+
+function defaultErrorHandler(errorCode, errorText) {
+  log(errorText);
+}
+
+function log(message) {
+  output.innerHTML = "<p>" + new Date().toLocaleTimeString() + "<br>" + message + "</p>" + output.innerHTML;
+}
+
+function toJson(object) {
+  return JSON.stringify(object, undefined, 2);
+}
+  </script>
+</body>
+</html>
