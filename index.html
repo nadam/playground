@@ -76,9 +76,20 @@ if (inlineQuery && inlineQuery.query) {
     ]
   });
 } </textarea><br><br>
+  <script>
+    if (localStorage.script) {
+      document.write('<button id="load" type="button" onClick="loadScript()">Load</button>');
+    }
+  </script>
+  <button id="save" type="button" onclick="saveScript()">Save</button>
+  <script>
+    if (localStorage.script) {
+      document.write('<button id="reset" type="button" onClick="resetScript()">Reset</button>');
+    }
+  </script>
+  <br><br>
   <p id="output"></p>
   <script>
-
 var onUpdate = document.getElementById("onUpdate");
 var output = document.getElementById("output");
 var startStop = document.getElementById("startStop");
@@ -95,7 +106,7 @@ document.getElementById("token").value = token;
 function startBot() {
   var token = document.getElementById("token").value;
   botUrl = "https://api.telegram.org/bot" + token + "/";
-  call("getMe", {}, function(bot) {
+  call("getMe", null, function(bot) {
     botName = bot.first_name;
     log(botName + " started");
     startStop.innerText = "Stop";
@@ -184,6 +195,19 @@ function call(method, params, onResponse, onError, timeout) {
   };
   
   xhr.send(JSON.stringify(params));
+}
+
+function saveScript() {
+  localStorage.script = onUpdate.value;
+}
+
+function loadScript() {
+  onUpdate.value = localStorage.script;
+}
+
+function resetScript() {
+  localStorage.removeItem("script");
+  window.location.reload(false); 
 }
 
 function defaultErrorHandler(errorCode, errorText) {
